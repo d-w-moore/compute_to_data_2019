@@ -1,0 +1,141 @@
+
+
+    check perms on input
+
+        - collections 
+
+    make data objects available
+        
+        -> set ACL's for client user
+        -> replicate to compute resource
+
+#------------------------------- REPLICATE_DATA_OBJECTS ( from_coll , to_resc , trim_from_resc ) ----------------------------
+
+from genquery import *
+
+def replicate_data_objects( rule_args , callback , rei):
+
+    from_collection = rule_args[0]
+    to_resource = rule_args[1]
+    trim_from_resource = rule_args[2]
+
+    if len(to_resource) == 0 or len(from_collection) == 0: return
+
+    replicated = {}
+
+    condition = "COLL_NAME = '{0}' || like '{0}/%' " .format (from_collection)
+
+    data_objects = list(row_iterator('DATA_NAME,COLL_NAME,DATA_RESC_NAME,DATA_REPL_NUM', condition, AS_DICT, callback))
+
+    for dobj in data_objects:
+
+        if dobj['DATA_RESC_NAME'] != to_resource:
+
+            retval = callback.msiDataObjRepl( "{COLL_NAME}/{DATA_NAME}".format(**dobj), "destRescName={0}".format(to_resource),0)
+            replicate_status = retval['code']
+            if replicate_status == 0 and dobj['DATA_RESC_NAME'] == trim_from_resource:
+                trim_retval = callback.msiDataObjTrim( "{COLL_NAME}/{DATA_NAME}".format(**dobj), "null",
+                                                       dobj['DATA_REPL_NUM'], "1", "null", 0)
+
+#-------- ubuntur16 ------------------------------------------------------------------------------------------------------------
+
+REGISTER A PHYSICAL PATH (COLLECTION or DATA OBJECT)
+
+
+           ************* see msvc_register_as_admin 
+
+f {
+# *path="/tempZone/home/rods/dude2"
+  *resc="ubuntur16Resource"
+# *phy="/var/lib/irods/Vault/home/rods/dude2"
+# *type="collection"
+  *y=-999999999
+  *x=msiPhyPathReg(*path,*resc,*phy,*type,*y)
+  writeLine("stdout","[*x][*y]")
+}
+
+input *path=$"/tempZone/home/rods/dude2",*phy=$"/var/lib/irods/Vault/home/rods/dude2",*type=$"collection"
+output ruleExecOut
+
+#-----------------------------------------------------------------------------------------------------------------------------
+
+
+import json
+import pprint
+import session_vars
+import uuid
+
+def storeJsonPayload(c, r, jobUUID='', jsonString=None ):
+
+    map_ = session_vars.get_map(r) ['client_user']
+    colln = '/{irods_zone}/home/{user_name}'.format(**map_)
+
+    if jobUUID:
+        colln += "/{}".format(jobUUID)
+        retv = c.msiCollCreate (colln,"0",0)
+        c.writeLine('stdout','coll_create -> {}'.format(retv['code']))
+
+    c.writeLine('stdout', 'coln = {} '.format(colln))
+
+    if jsonString is not None:
+
+        descriptor = ""
+
+        try:
+
+            create_rv = c.msiDataObjCreate( colln + "/config.json", "forceFlag=", 0)
+            descriptor = create_rv ['arguments'][2]
+
+        except: pass
+
+        if type(descriptor) is not int:
+
+            pass
+            c.writeLine("serverLog", "Could not create JSON data object")
+        else:
+
+            try:
+
+                write_rv = c.msiDataObjWrite( descriptor , jsonString, 0 )
+                bytesWritten = write_rv['arguments'][2]
+                c.writeLine("stdout","{} bytes written".format(bytesWritten))
+
+                close_rv = c.msiDataObjClose( descriptor, 0 )
+                c.writeLine("stdout","descriptor {} closed -> {}".format(descriptor,close_rv['arguments'][1]))
+
+            except: pass
+
+
+#=============================
+
+def asyncRemoteExecute(rule_args, callback, rei):
+
+    jsonPayload =  rule_args[0]
+    job_uuid = rule_args[1]
+    parms_Extra = rule_args[2]
+    
+    mylist = parms_Extra.split("/")
+    params_ = { 'REMOTE-HOST':mylist[0] , 'STRING-TO-PRINT':mylist[1] }
+
+    executeConfig = json.loads(jsonPayload)
+
+    # -- generate UUID if none provided
+
+    job_uuid = rule_args[1]
+    if not job_uuid:
+        job_uuid = str(uuid.uuid1()) 
+        rule_args[1] = job_uuid
+
+    storeJsonPayload(callback,rei,job_uuid)
+
+    x=                 """
+                       remote ("%(REMOTE-HOST)s","") {
+                           *a="%(STRING-TO-PRINT)s"
+                           pythonRuleEnginePluginTest(*a," [*a]")
+                       }
+                       """ % params_ 
+
+    callback.writeLine("stdout",x)
+#   callback.delayExec("<PLUSET>10s</PLUSET>", x ,"")
+
+
