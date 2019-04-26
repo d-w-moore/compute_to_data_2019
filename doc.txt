@@ -1,0 +1,11 @@
+sudo su - -c 'mkdir -p /iRods/computeStoResc  && chown irods:irods -R  /iRods '
+sudo su - irods -c 'iadmin mkuser alice rodsuser  && iadmin moduser alice password apass'
+sudo su - irods -c 'iadmin mkresc computeStoResc  unixfilesystem $(hostname):/iRods/computeStoResc'
+############################################3333
+
+11:57AM dmoore@canute:~ $ rm -fr .irods
+ERROR(2) 11:57AM dmoore@canute:~ $ iinit 
+ ... < sign in as user alice >
+
+############################################
+

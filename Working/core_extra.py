@@ -8,6 +8,53 @@ def writeStringToCharArray(s, char_array):
     for i in range(0, len(s)):
         char_array[i] = s[i]
 
+def split_irods_path( s ):
+    s.split("/")
+    return s[:-1],s[-1]
+
+def replicate_data_objects( rule_args , callback , rei):
+
+    from_object = rule_args[0]
+    to_resource = rule_args[1]
+    from_resource = rule_args[2]
+    trim_after_replication = rule_args[3]
+
+    if len(to_resource) == 0 or len(from_object) == 0: return
+
+    path,obj = split_irods_path (from_object)
+
+    condition = "COLL_NAME = '{0}' and DATA_NAME = '{1}' ".format(path,obj)
+    if from_resource:
+        condition += " and DATA_RESC_NAME = '{}' ".format(from_resource)
+
+    data_objects = list(row_iterator('DATA_NAME,COLL_NAME,DATA_RESC_NAME,DATA_REPL_NUM', condition, AS_DICT, callback))
+
+    if not(data_objects):
+        condition = "COLL_NAME = '{0}' || like '{0}/%' " .format (from_object)
+        if from_resource:
+            condition += " and DATA_RESC_NAME = '{}'".format(from_resource)
+        data_objects = list(row_iterator('DATA_NAME,COLL_NAME,DATA_RESC_NAME,DATA_REPL_NUM', condition, AS_DICT, callback))
+
+    replicated = {}
+
+    for dobj in data_objects:
+
+        if dobj['DATA_RESC_NAME'] != to_resource:
+
+            full_path = "{COLL_NAME}/{DATA_NAME}".format(**dobj)
+
+            replication_status = False
+
+            if not replicated.get(full_path, False):
+                retval = callback.msiDataObjRepl( full_path, "destRescName={0}".format(to_resource),0)
+                replication_status = retval['status']
+
+            replicated [full_path] = replication_status
+
+            if replication_status and dobj['DATA_RESC_NAME'] == from_resource and bool(trim_after_replication):
+                trim_retval = callback.msiDataObjTrim( "{COLL_NAME}/{DATA_NAME}".format(**dobj), "null",
+                                                       dobj['DATA_REPL_NUM'], "1", "null", 0)
+
 def register_object_via_admin_proxy(rule_args, callback, rei):
     logPath = rule_args[0]
     rescN = rule_args[1]
@@ -20,9 +67,6 @@ def register_object_via_admin_proxy(rule_args, callback, rei):
 
 #-----------------------------------------------------------------------
 
-def split_irods_path( s ):
-    s.split("/")
-    return s[:-1],s[-1]
 
 def remote_container_execute (rule_args,callback,rei):
     container_run_jsonConfigName = rule_args [0]
