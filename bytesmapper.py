@@ -9,43 +9,45 @@ if sys.version_info >= (3,) :
 else:
     unicode_ = unicode 
 
-bytes_convert  = lambda encoding : (lambda s: s.encode(encoding) if isinstance(s,unicode_) else s)
-string_convert = lambda encoding : (lambda b: b.decode(encoding) if isinstance(b,bytes) else b)
+to_bytes  = lambda encoding : (lambda s: s.encode(encoding) if isinstance(s,unicode_) else s)
+to_string = lambda encoding : (lambda b: b.decode(encoding) if isinstance(b,bytes) else b)
 
 def map_structure(struc, encoding = 'utf8'):
 
     if callable(encoding):
         xlat = encoding
     else:
-        xlat = bytes_convert (encoding) # default =simplify json structure for python2.7
+        xlat = to_bytes (encoding) # default =simplify json structure for python2.7
     
     if isinstance(struc, dict): return { xlat (k) : map_structure(v,encoding) for k,v in struc.items() }
     elif isinstance (struc, (list,tuple)): return type(struc)(map_structure(k,encoding) for k in struc)
-    elif isinstance (struc, (str,bytes)): return xlat (struc)
+    elif isinstance (struc, (unicode_,bytes)): return xlat (struc)
     else: return struc
 
 if __name__ == '__main__': 
        
     test_struct = {
-       "hello" : {
-          "whats" : "up",
-          "doc":  { "name" : "bugs"
+       b"hello" : {
+          b"whats" : b"up",
+          b"doc":  { b"name" : b"bugs"
                   }
        },
        u"goodbye": [4,u"",5]
     }
 
+    print("\n\n\toriginal structure:\n\n" + pformat(test_struct))
 
     byte_mapped = map_structure( test_struct , 
-        bytes_convert("utf8") 
+        to_bytes("utf8") 
     )
 
     print("\n\n\tbytes only:\n\n" + pformat(byte_mapped))
 
     uni_mapped = map_structure( test_struct , 
-        string_convert("utf8") 
+        to_string("utf8") 
     )
 
     print("\n\n\tunicode only:\n\n" + pformat(uni_mapped))
 
+    print("\n\n")
 
