@@ -1,0 +1,7 @@
+#- UGM - compute to data 2019 demo -
+
+ssh -i training.pem ubuntu@XXXXXXXXXX.105
+
+#- UGM irods admin training 2019 -
+
+ssh -i training.pem ubuntu@XXXXXXXXXX.251
