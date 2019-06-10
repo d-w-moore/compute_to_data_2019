@@ -1,13 +1,11 @@
-
-
-    check perms on input
-
-        - collections 
-
-    make data objects available
-        
-        -> set ACL's for client user
-        -> replicate to compute resource
+#   check perms on input
+#
+#       - collections 
+#
+#   make data objects available
+#       
+#       -> set ACL's for client user
+#       -> replicate to compute resource
 
 #------------------------------- REPLICATE_DATA_OBJECTS ( from_coll , to_resc , trim_from_resc ) ----------------------------
 
@@ -64,29 +62,6 @@ def replicate_data_objects( rule_args , callback , rei):
 
                 trim_retval = callback.msiDataObjTrim( "{COLL_NAME}/{DATA_NAME}".format(**dobj), "null",
                                                        dobj['DATA_REPL_NUM'], "1", "null", 0)
-
-
-
-
-#-------- ubuntur16 ------------------------------------------------------------------------------------------------------------
-
-REGISTER A PHYSICAL PATH (COLLECTION or DATA OBJECT)
-
-
-           ************* see msvc_register_as_admin 
-
-f {
-# *path="/tempZone/home/rods/dude2"
-  *resc="ubuntur16Resource"
-# *phy="/var/lib/irods/Vault/home/rods/dude2"
-# *type="collection"
-  *y=-999999999
-  *x=msiPhyPathReg(*path,*resc,*phy,*type,*y)
-  writeLine("stdout","[*x][*y]")
-}
-
-input *path=$"/tempZone/home/rods/dude2",*phy=$"/var/lib/irods/Vault/home/rods/dude2",*type=$"collection"
-output ruleExecOut
 
 #-----------------------------------------------------------------------------------------------------------------------------
 

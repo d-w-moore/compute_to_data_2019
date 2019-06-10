@@ -1,3 +1,4 @@
+from genquery  import row_iterator, AS_DICT
 
 def user_id_for_name(rule_args, callback, rei):
 
@@ -8,7 +9,7 @@ def user_id_for_name(rule_args, callback, rei):
           user_id = i['USER_ID']
     if 0 < len(user_id) : rule_args[1] = user_id
 
-def check_perm_on_datobj(rule_args, callback, rei):
+def check_perms_on_data_object(rule_args, callback, rei):
     access_types = { 'write':'1120', 'read':'1050', 'own':'1200' }
     logical_path = rule_args[0]
     user_id = rule_args[1]
@@ -29,7 +30,7 @@ def check_perm_on_datobj(rule_args, callback, rei):
         rule_args[3] = host_name
         rule_args[4] = physical_path
 
-def check_perm_on_colln(rule_args, callback, rei):
+def check_perms_on_collection(rule_args, callback, rei):
     access_types = { 'write':'1120', 'read':'1050', 'own':'1200' }
     logical_path = rule_args[0]
     user_id = rule_args[1]

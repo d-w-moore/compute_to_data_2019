@@ -1,88 +1,120 @@
 import datetime
 import json
-import pprint
-import uuid
+from genquery import AS_LIST, AS_DICT, row_iterator
+import warnings
+from textwrap import dedent
 
-def writeStringToCharArray(s, char_array):
-    for i in range(0, len(s)):
-        char_array[i] = s[i]
+from bytes_unicode_mapper import to_bytes, to_unicode, map_recursively
 
-def pythonRuleEnginePluginTest(rule_args, callback, rei):
-    with open('/tmp/from_core_py.txt', 'a') as f:
-        f.write(str(datetime.datetime.now()))
-        f.write('\n')
-        c = 0
-        for arg in rule_args:
-            f.write('\t')
-            f.write(str(c))
-            f.write(' : ')
-            f.write(str(arg))
-            f.write('\n')
-            c = c +1
-    callback.writeLine('serverLog', 'Printed to server log from python rule engine')
-
-def get_size(a,callback,rei):
-    callback.writeLine("stdout", get_object_size(callback, a[0] ))
-    pass
-
-def get_object_size(callback, path):
-
-    rv = callback.msiObjStat( path , 0)
-
-    size = 0
-    if  rv['status' ] and rv['code'] == 0:
-        size = int(rv['arguments'][1].objSize)
-
-    return str(size)
+from checkperms import ( user_id_for_name, 
+                         check_perms_on_data_object,
+                         check_perms_on_collection   )
 
 
-def asyncRemoteExecute(rule_args, callback, rei):
+def logger (callback,strm='serverLog'):
+    return  lambda s: callback.writeLine( strm, s )
 
-    job_params_object = rule_args[0]
+def delayed_container_launch(rule_args, callback, rei):
 
-    contents = readobj(callback, job_params_object)
-    callback.writeLine("stderr","len = "+str(len(contents)))
-    #callback.writeLine( "stdout", ">>>>>>>>>>>>>\n{}\n<<<<<<<<<<<<<".format(contents))
-    j = json.loads(str( contents))
-    callback.writeLine("stdout", ">>> {} <<<" .format(pprint.pformat(j)) )
+    # - perhaps set metadata on container config to indicate which input coll. to process
 
-def readobj(callback, name):
+    (container_config, src_resc, dest_resc) = rule_args
 
-    rv = callback.msiDataObjOpen (  "objPath={0}".format(name), 0 )
+    p = logger(callback,'stdout')
+    input_dir =  ""
 
-    returnbuffer = None
-    desc = None
+    remote_host = ""
 
-    if rv['status'] and rv['code'] >= 0: 
-        desc = rv['arguments'][1]
+    for x in row_iterator ('RESC_LOC',"RESC_NAME = '{}'".format(dest_resc),AS_LIST,callback):
+        remote_host = x[0]
 
-    if type(desc) is int:
-        siz = get_object_size (callback,name)
-        rv = callback.msiDataObjRead ( desc, siz, 0 )
-        returnbuffer = rv ['arguments'][2]
+    p('inputdir={!r}'.format(input_dir))
+    
+    output_dir = ""
 
-    return str(returnbuffer.buf)[:int(siz)] if returnbuffer else ""
-
-    '''
-    job_uuid = rule_args[1]
-    parms_Extra = rule_args[2]
-    mylist = parms_Extra.split("/")
-    params_ = { 'REMOTE-HOST':mylist[0] , 'STRING-TO-PRINT':mylist[1] }
-    executeConfig = json.loads(jsonPayload)
-    # -- generate UUID if none provided
-    job_uuid = rule_args[1]
-    if not job_uuid:
-        job_uuid = str(uuid.uuid1())  
-        rule_args[1] = job_uuid
-    storeJsonPayload(callback,rei,job_uuid)
-    x=                 """
-                       remote ("%(REMOTE-HOST)s","") {
-                           *a="%(STRING-TO-PRINT)s"
-                           pythonRuleEnginePluginTest(*a," [*a]")
-                       }
-                       """ % params_
+    x = dedent("""\
+               remote ("{remote_host}","") {
+                   handle_docker_call( "{container_config}",
+               }
+               """)
     callback.writeLine("stdout",x)
     callback.delayExec("<PLUSET>10s</PLUSET>", x ,"")
-    '''
 
+def create_collection (args,callback,rei):
+    objpath=args[0]
+    rv = callback.msiCollCreate (objpath, "0", 0)
+    
+def set_acl_inherit (args,callback,rei):
+    objpath = args[0]
+    user = args[1]
+    rv = callback.msiSetACL ("recursive", "admin:inherit", user, objpath)
+
+def set_acl (args,callback,rei):
+    pr = make_logger (callback)
+    objpath = args[0]
+    user = args[1]
+    rv = callback.msiSetACL ("default", "admin:own", user, objpath)
+
+def pep_api_data_obj_repl_post(rule_args,callback,rei ):
+  dataobjinp = rule_args[2]
+  cI = dataobjinp.condInput; condInp = { str(cI.key[i]):str(cI.value[i]) for i in range(cI.len) }
+  dest_resc = str( condInp['destRescName'] )
+  obj_path = str( dataobjinp.objPath )
+
+# -- DEBUG VERSION
+#
+#from myinspect import myInspect
+#
+#def pep_api_data_obj_repl_post(a,c,r ):
+#    import cStringIO
+#    out=cStringIO.StringIO() 
+#    myInspect ( a, stream=out ,types_callback=(
+#        [irods_types.KeyValPair,
+#         lambda x: [ "key {} value {} ".format (x.key[i],x.value[i]) for i in range(x.len) ]
+#        ], 
+#        [irods_types.char_array,
+#         lambda x: [ "strvalue {!s}".format (x) ]
+#        ])
+#    )
+#    c.writeLine( "serverLog", out.getvalue() )
+
+def _resolve_docker_method (cliHandle, attrNames):
+
+    my_object = cliHandle
+    if isinstance (attrNames, (str,bytes)):
+        attrNames=attrNames.split('.')
+    while my_object and attrNames:
+        name = attrNames.pop(0)
+        my_object = getattr(my_object,name,None)
+    return my_object
+
+
+def handle_docker_call(rule_args, callback, rei):
+
+    docker_cmd = rule_args[0]
+    arg = rule_args[1]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        import docker
+    docker_method = _resolve_docker_method (docker.from_env(), docker_cmd )
+    docker_method (arg)
+
+#
+#def writeStringToCharArray(s, char_array):
+#    for i in range(0, len(s)):
+#        char_array[i] = s[i]
+#
+#def pythonRuleEnginePluginTest(rule_args, callback, rei):
+#    with open('/tmp/from_core_py.txt', 'a') as f:
+#        f.write(str(datetime.datetime.now()))
+#        f.write('\n')
+#        c = 0
+#        for arg in rule_args:
+#            f.write('\t')
+#            f.write(str(c))
+#            f.write(' : ')
+#            f.write(str(arg))
+#            f.write('\n')
+#            c = c +1
+#    callback.writeLine('serverLog', 'Printed to server log from python rule engine')
 
