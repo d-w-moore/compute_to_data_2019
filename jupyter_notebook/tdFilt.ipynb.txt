@@ -1,0 +1,24 @@
+%matplotlib inline
+import matplotlib.pyplot as plt
+import numpy as np
+
+N=1024
+hammingWin = np.zeros(N);
+hammingWin[:-1]+=np.hamming (N-1)
+tdFilter = np.zeros(N); 
+tdFilter[:-1] += np.sinc(np.linspace(-N/2+1,N/2-1,N-1)*0.10)*hammingWin[:-1]
+plt.plot(tdFilter)
+
+# ---
+
+plt.semilogy(np.abs(np.fft.fft(tdFilter)))
+#z=np.linspace(.01,.01,128)
+#plt.semilogy(z)
+# sawtooth=np.mod(np.linspace(0,1023,1024),24)-11.5
+sawtooth=np.mod(np.linspace(0,1023,1024),48)-23.5
+
+plt.semilogy(np.abs(np.fft.fft(sawtooth)))
+
+# ---
+
+plt.plot(np.convolve( tdFilter, sawtooth )[200:800])

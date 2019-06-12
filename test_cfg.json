@@ -1,28 +1,17 @@
 {
-    "docker":
-    {
-        "image": "test-docker"
+    "container": {
+        "type": "docker",
+        "image": "testimages/jupyter-digital-filter",
+        "command": ["/lpfilter", "--passband=0.2", "--stopband=0.3", 
+                                 "--passripple=1.5", "stopripple=30" 
+         ]
     },
-
-    "singularity": 
-    {
-        "image": "test-singularity"
-    },
-
-    "rule": {
-        "name": "test-rule"
-    },
-
     "external": {
-        "compute_host" : "localhost",
-        "compute_storage_resc" : "computeResc",
-        "src_collection" : "/tempZone/home/public/testinputs",
-        "dst_collection" : "",
-        "uuid": ""
+        "src_collection" : "/tempZone/home/public/alice/test_inputs",
+        "dst_collection" : "/tempZone/home/public/alice/test_outputs"
     },
-
     "internal": {
-        "target": {},
-        "arguments": []
+        "src_directory": "/inputs",
+        "dst_directory": "/outputs"
     }
 }

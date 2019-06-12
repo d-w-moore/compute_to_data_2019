@@ -5,7 +5,7 @@ ENV  IRODS_GID ${irods_gid}
 
 USER root
 
-RUN apt-get update && apt-get install -y vim 
+RUN apt-get update && apt-get install -y vim less
 
 RUN groupadd -g $IRODS_GID irods && usermod -aG irods jovyan 
 

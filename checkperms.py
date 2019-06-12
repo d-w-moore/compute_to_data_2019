@@ -13,10 +13,10 @@ def this_host_tied_to_resc(callback, resc ):
         tied_host = rescvault['RESC_LOC']
 #   callback.writeLine("stderr", "tied = %r"%tied_host)
     return this_host == tied_host
-    
+
 
 def data_object_physical_path_in_vault(callback, path, resc, vault_validate = None):
-    
+
     v = {}
 
     if type(vault_validate) is dict:
@@ -33,7 +33,7 @@ def data_object_physical_path_in_vault(callback, path, resc, vault_validate = No
 
     phys_path = ''
 
-    for p in row_iterator("DATA_PATH", 
+    for p in row_iterator("DATA_PATH",
      "DATA_NAME = '{dataobj}' and COLL_NAME = '{colln}' ".format(**locals()),
      AS_DICT,callback):
 
@@ -43,7 +43,7 @@ def data_object_physical_path_in_vault(callback, path, resc, vault_validate = No
         v['vault_relative_path'] = phys_path [len(leading_path):].lstrip('/')
 
     return phys_path
-          
+
 
 def user_id_for_name(rule_args, callback, rei):
 
