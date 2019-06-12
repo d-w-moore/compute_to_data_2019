@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5.0 FATAL_ERROR) #CPACK_DEBIAN_<COMPONENT>_PACKAGE_NAME
 
-find_package(IRODS 4.2.5 EXACT REQUIRED)
+find_package(IRODS 4.2.6 EXACT REQUIRED)
 
 set(CMAKE_C_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang)
 set(CMAKE_CXX_COMPILER ${IRODS_EXTERNALS_FULLPATH_CLANG}/bin/clang++)
@@ -100,7 +100,7 @@ install(
   TARGETS
   ${PLUGIN}
   LIBRARY
-    DESTINATION usr/lib/irods/plugins/microservices
+    DESTINATION /usr/lib/irods/plugins/microservices
   )
 
 set(CPACK_PACKAGE_FILE_NAME "irods-microservice-register_as_admin-${IRODS_VERSION}-${IRODS_LINUX_DISTRIBUTION_NAME}${IRODS_LINUX_DISTRIBUTION_VERSION_MAJOR}-${CMAKE_SYSTEM_PROCESSOR}")
