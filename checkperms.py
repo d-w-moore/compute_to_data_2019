@@ -1,5 +1,50 @@
 from genquery  import row_iterator, AS_DICT
 
+def split_irods_path( s ):
+    elem = s.split("/")
+    return "/".join(elem[:-1]),elem[-1]
+
+def this_host_tied_to_resc(callback, resc ):
+    import socket
+    this_host = socket.gethostname()
+#   callback.writeLine("stderr"," host = '{}'".format(this_host))
+    tied_host = ""
+    for rescvault in row_iterator( 'RESC_LOC',"RESC_NAME = '{resc}'".format(**locals()), AS_DICT,callback):
+        tied_host = rescvault['RESC_LOC']
+#   callback.writeLine("stderr", "tied = %r"%tied_host)
+    return this_host == tied_host
+    
+
+def data_object_physical_path_in_vault(callback, path, resc, vault_validate = None):
+    
+    v = {}
+
+    if type(vault_validate) is dict:
+        v = vault_validate
+        leading_path = ""
+        for rescvault in row_iterator( 'RESC_VAULT_PATH',"RESC_NAME = '{resc}'".format(**locals()), AS_DICT,callback ):
+            leading_path = rescvault['RESC_VAULT_PATH']
+        v ['is_in_vault'] = (leading_path != "")
+
+
+    # - get data object's absolute physical data path
+
+    colln, dataobj = split_irods_path( path )
+
+    phys_path = ''
+
+    for p in row_iterator("DATA_PATH", 
+     "DATA_NAME = '{dataobj}' and COLL_NAME = '{colln}' ".format(**locals()),
+     AS_DICT,callback):
+
+        phys_path = p['DATA_PATH']
+
+    if v['is_in_vault'] and phys_path . startswith( leading_path ):
+        v['vault_relative_path'] = phys_path [len(leading_path):].lstrip('/')
+
+    return phys_path
+          
+
 def user_id_for_name(rule_args, callback, rei):
 
     user_id= ''
@@ -8,6 +53,7 @@ def user_id_for_name(rule_args, callback, rei):
         if 0 == len(user_id):
           user_id = i['USER_ID']
     if 0 < len(user_id) : rule_args[1] = user_id
+
 
 def check_perms_on_data_object(rule_args, callback, rei):
     access_types = { 'write':'1120', 'read':'1050', 'own':'1200' }
