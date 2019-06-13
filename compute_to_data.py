@@ -1,6 +1,7 @@
 
 import json, uuid
 from genquery import AS_LIST, AS_DICT, row_iterator
+import irods_types
 import warnings
 from textwrap import dedent as _dedent
 
@@ -56,7 +57,7 @@ def _resolve_docker_method (cliHandle, attrNames):
     return my_object
 
 
-def _vet_acceptable_docker_params (container_command , container_config, logger):
+def _vet_acceptable_container_params (container_command , container_cfg, logger):
 
     if container_cfg["type"] != "docker" :
         logger("Choice of container technology now limited to Docker")
@@ -76,6 +77,19 @@ def _vet_acceptable_docker_params (container_command , container_config, logger)
 
 Metadata_Tag = "irods::compute_to_data_task"
 
+#def #compute_to_data__
+
+def meta_stamp_R (arg,callback, rei): meta_stamp (callback,arg[0],task_id='task-id')
+
+def meta_stamp (callback, object_path, object_type = "-d", task_id = "" ):
+    METADATA_TAG = Metadata_Tag
+    rv = callback.msiString2KeyValPair("{METADATA_TAG}={task_id}".format(**locals()),
+                                       irods_types.KeyValPair())
+    if rv ['status']:
+        rv = callback.msiSetKeyValuePairsToObj(rv['arguments'][1], object_path, object_type )
+
+    return rv['status']
+
 
 def container_dispatch(rule_args, callback, rei):
 
@@ -87,7 +101,7 @@ def container_dispatch(rule_args, callback, rei):
 
     logger = make_logger ( callback , "serverLog" )
 
-    if not (resc_for_data and this_host_tied_to_resc(callback, resc_for_data)) :
+    if not (resc_for_data != "" and this_host_tied_to_resc(callback, resc_for_data)) :
         logger("Input/output data objects must be located on a local resource"); return
 
     if not task_id: task_id = uuid.uuid1()
@@ -100,7 +114,7 @@ def container_dispatch(rule_args, callback, rei):
         config_json = _read_data_object (callback, config_file )
         kw = _map_strings_recursively( json.loads(config_json), _to_bytes('utf8'))
 
-    if not _vet_acceptable_docker_params( docker_cmd, config_json["container"] , logger) :  return
+    if not _vet_acceptable_container_params( docker_cmd, config_json["container"] , logger) :  return
 
     docker_args = [ config_json["container"]["image"],
                   ]
@@ -145,7 +159,7 @@ def container_dispatch(rule_args, callback, rei):
             output_leading_path = data_object_physical_path_in_vault( callback, output_locator, resc_for_data, output_vault_info )
             if output_leading_path:
                 rel_path = output_vault_info.get("vault_relative_path")
-                if rel_path : vault_paths['output'] = "/".join(config_json["internal"]["dst_directory"],rel_path)
+                if rel_path : vault_paths['output'] = "/".join(config_json["internal"]["src_directory"],rel_path)
 
             if vault_paths:
                 docker_opts [ 'volumes' ]  = {}
