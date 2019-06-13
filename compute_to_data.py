@@ -145,7 +145,7 @@ def container_dispatch(rule_args, callback, rei):
             output_leading_path = data_object_physical_path_in_vault( callback, output_locator, resc_for_data, output_vault_info )
             if output_leading_path:
                 rel_path = output_vault_info.get("vault_relative_path")
-                if rel_path : vault_paths['output'] = "/".join(config_json["internal"]["src_directory"],rel_path)
+                if rel_path : vault_paths['output'] = "/".join(config_json["internal"]["dst_directory"],rel_path)
 
             if vault_paths:
                 docker_opts [ 'volumes' ]  = {}
