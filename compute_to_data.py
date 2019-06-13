@@ -1,37 +1,45 @@
-import datetime
+
 import json
 from genquery import AS_LIST, AS_DICT, row_iterator
 import warnings
-from textwrap import dedent
+from textwrap import dedent as _dedent
 
-from bytes_unicode_mapper import(map_strings_recursively, to_bytes, to_unicode)
+from bytes_unicode_mapper import( map_strings_recursively as _map_strings_recursively,
+                                  to_bytes as _to_bytes,
+                                  to_unicode as _to_unicode)
 
-from checkperms import ( user_id_for_name,
-                         check_perms_on_data_object,
-                         check_perms_on_collection   )
-
-
-def logger (callback,strm='serverLog'):
-    return  lambda s: callback.writeLine( strm, s )
+from checkpoints import *
 
 
-## -------------- auxiliary --------------
+def get_object_size(callback, path):
 
-def create_collection (args,callback,rei):
-    objpath=args[0]
-    rv = callback.msiCollCreate (objpath, "0", 0)
+    rv = callback.msiObjStat( path , 0)
 
-def set_acl_inherit (args,callback,rei):
-    objpath = args[0]
-    user = args[1]
-    rv = callback.msiSetACL ("recursive", "admin:inherit", user, objpath)
+    size = 0
+    if  rv['status' ] and rv['code'] == 0:
+        size = int(rv['arguments'][1].objSize)
 
-def set_acl (args,callback,rei):
-    pr = make_logger (callback)
-    objpath = args[0]
-    user = args[1]
-    rv = callback.msiSetACL ("default", "admin:own", user, objpath)
+    return str(size)
 
+
+def readobj(callback, name):
+
+    rv = callback.msiDataObjOpen (  "objPath={0}".format(name), 0 )
+
+    returnbuffer = None
+    desc = None
+
+    if rv['status'] and rv['code'] >= 0: 
+        desc = rv['arguments'][1]
+
+    if type(desc) is int:
+        siz = get_object_size (callback,name)
+        rv = callback.msiDataObjRead ( desc, siz, 0 )
+        returnbuffer = rv ['arguments'][2]
+
+    return str(returnbuffer.buf)[:int(siz)] if returnbuffer else ""
+
+## ------------------------------------------------
 
 def _resolve_docker_method (cliHandle, attrNames):
 
@@ -57,9 +65,9 @@ def container_dispatch(rule_args, callback, rei):
 
     kw = {}
 
-    if type(keywords_file) is str and keywords_file:
-        config_json = readobj (callback, keywords_file )
-        kw = map_strings_recursively( json.loads(config_json), to_bytes('utf8'))
+    if type(config_file) is str and config_file:
+        config_json = read_data_object (callback, keywords_file )
+        kw = _map_strings_recursively( json.loads(config_json), _to_bytes('utf8'))
 
     docker_method = _resolve_docker_method (docker.from_env(), docker_cmd, **kw )
     docker_method (args)
@@ -67,12 +75,11 @@ def container_dispatch(rule_args, callback, rei):
 
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-def delayed_container_launch(rule_args, callback, rei):
-
+def _delayed_container_launch(rule_args, callback, rei): 
 
     (container_command, container_config ) = rule_args
 
-    p = logger(callback,'stdout')
+    p = make_logger(callback,'stdout')
     input_dir =  ""
 
     remote_host = ""
@@ -81,36 +88,20 @@ def delayed_container_launch(rule_args, callback, rei):
         remote_host = x[0]
 
     p('inputdir={!r}'.format(input_dir))
-
+    
     output_dir = ""
 
-    x = dedent("""\
-               remote ("{remote_host}","") {
-                   container_dispatch ( "{container_command}","{container_config}" )
-               }
-               """)
+    x = _dedent("""\
+                remote ("{remote_host}","") {
+                    container_dispatch ( "{container_command}","{container_config}" )
+                }
+                """)
     callback.writeLine("stdout",x)
-    callback.delayExec("<PLUSET>10s</PLUSET>", x ,"")
+    callback.delayExec("<PLUSET>1s</PLUSET>", x ,"")
 
-##def pep_api_data_obj_repl_post(rule_args,callback,rei ):
-##  dataobjinp = rule_args[2]
-##  cI = dataobjinp.condInput; condInp = { str(cI.key[i]):str(cI.value[i]) for i in range(cI.len) }
-##  dest_resc = str( condInp['destRescName'] )
-##  obj_path = str( dataobjinp.objPath )
-##
-### -- DEBUG VERSION
-###
-###from myinspect import myInspect
-###
-###def pep_api_data_obj_repl_post(a,c,r ):
-###    import cStringIO
-###    out=cStringIO.StringIO()
-###    myInspect ( a, stream=out ,types_callback=(
-###        [irods_types.KeyValPair,
-###         lambda x: [ "key {} value {} ".format (x.key[i],x.value[i]) for i in range(x.len) ]
-###        ],
-###        [irods_types.char_array,
-###         lambda x: [ "strvalue {!s}".format (x) ]
-###        ])
-###    )
-###    c.writeLine( "serverLog", out.getvalue() )
+#def pep_api_data_obj_repl_post(rule_args,callback,rei ):
+#  dataobjinp = rule_args[2]
+#  cI = dataobjinp.condInput; condInp = { str(cI.key[i]):str(cI.value[i]) for i in range(cI.len) }
+#  dest_resc = str( condInp['destRescName'] )
+#  obj_path = str( dataobjinp.objPath )
+#
