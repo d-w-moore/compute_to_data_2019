@@ -79,7 +79,7 @@ Metadata_Tag = "irods::compute_to_data_task"
 
 #def #compute_to_data__
 
-def meta_stamp_R (arg,callback, rei): meta_stamp (callback,arg[0],task_id='task-id')
+def meta_stamp_R (arg,callback, rei): meta_stamp (callback,arg[0],task_id='dummy-task-id')
 
 def meta_stamp (callback, object_path, object_type = "-d", task_id = "" ):
     METADATA_TAG = Metadata_Tag
@@ -142,7 +142,6 @@ def container_dispatch(rule_args, callback, rei):
 
         this_input = None
 
-
         if eligible_inputs:
 
             this_input = eligible_inputs[0]
@@ -150,13 +149,15 @@ def container_dispatch(rule_args, callback, rei):
             vault_paths = {}
 
             input_vault_info = {}
-            input_leading_path = data_object_physical_path_in_vault( callback, this_input, resc_for_data, input_vault_info )
+            input_leading_path = data_object_physical_path_in_vault( callback, this_input, resc_for_data, '1', input_vault_info)
             if input_leading_path :
                 rel_path = input_vault_info.get("vault_relative_path")
                 if rel_path : vault_paths['input'] = "/".join(config_json["internal"]["src_directory"],rel_path)
 
+            # The application should create a data object in the output collection before reaching this point :
+
             output_vault_info = {}
-            output_leading_path = data_object_physical_path_in_vault( callback, output_locator, resc_for_data, output_vault_info )
+            output_leading_path = data_object_physical_path_in_vault( callback, output_locator, resc_for_data, '1', output_vault_info)
             if output_leading_path:
                 rel_path = output_vault_info.get("vault_relative_path")
                 if rel_path : vault_paths['output'] = "/".join(config_json["internal"]["src_directory"],rel_path)

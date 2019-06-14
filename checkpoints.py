@@ -29,6 +29,12 @@ def split_irods_path( s ):
     elem = s.split("/")
     return "/".join(elem[:-1]),elem[-1]
 
+def this_host_tied_to_resc_R( args, callback, rei ):
+    pr = make_logger(callback,'stdout')
+    yn = this_host_tied_to_resc(callback, args[0] )
+    pr ('tied to resc {} -> {}' .format(args[0],yn))
+    
+    
 def this_host_tied_to_resc(callback, resc ):
     import socket
     this_host = socket.gethostname()
@@ -46,10 +52,14 @@ def data_object_physical_path_in_vault_R(args, callback, rei):  # - test functio
     pr('v_retn = %r'%v_retn)
 
 
+#--------
 # Find (opt. force instantiation of) a data object path on the desired [resc] .
 # In the case of an output directory, we'll have to create a dummy data object because collection's
 #  corresponding directories do not autovivify in a vault without a data replica to drive the process.
-# ---
+#
+# Iff 'vault_relative_path' is a key in [vault_validate] upon return, the data object can be assumed local
+# and accessible at the given path, which is relative to the vault path returned by the function.
+#
 # NB this function does not create the collection itself; it is assumed to have been created already.
 
 def data_object_physical_path_in_vault(callback, path, resc, force_creation_on_resc, vault_validate = None):
@@ -60,7 +70,7 @@ def data_object_physical_path_in_vault(callback, path, resc, force_creation_on_r
 
     status = _data_object_exists_targeting_resc( callback, resc, colln, dataobj )
 
-    if status != 'already-exists' and force_creation_on_resc:
+    if status != 'already-exists' and force_creation_on_resc.upper() not in ('', 'N','NO','0') :
         close_rv = {} ; repl_rv  = {} ; close_rv = {}
         if (status == 'need-repl'):
             repl_rv = callback.msiDataObjRepl(path, "destRescName={}".format(resc), 0)
@@ -75,9 +85,10 @@ def data_object_physical_path_in_vault(callback, path, resc, force_creation_on_r
 
     if type(vault_validate) is dict:    # - get vault path to match against data object phys. path
         v = vault_validate
-        leading_path = ""
-        for rescvault in row_iterator( 'RESC_VAULT_PATH',"RESC_NAME = '{resc}'".format(**locals()), AS_DICT,callback ):
-            leading_path = rescvault['RESC_VAULT_PATH']
+
+    leading_path = ""
+    for rescvault in row_iterator( 'RESC_VAULT_PATH',"RESC_NAME = '{resc}'".format(**locals()), AS_DICT,callback ):
+        leading_path = rescvault['RESC_VAULT_PATH']
 
     phys_path = ''
     for p in row_iterator("DATA_PATH",
