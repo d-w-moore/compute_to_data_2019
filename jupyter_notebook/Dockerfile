@@ -19,6 +19,9 @@ COPY mymodule/ /home/jovyan/work/mymodule/
 
 RUN chown jovyan.users /home/jovyan/work/demochirp.ipynb
 
+COPY mymodule/ /home/jovyan/work/mymodule
+RUN chown -R jovyan.users /home/jovyan/work/mymodule
+
 USER jovyan
 
 RUN conda init
@@ -26,7 +29,5 @@ RUN conda init
 RUN conda install -y -c conda-forge matplotlib numpy
 
 RUN jupyter trust /home/jovyan/work/demochirp.ipynb
-
-COPY mymodule/ /home/jovyan/work/mymodule
 
 CMD [ '/bin/bash' ]

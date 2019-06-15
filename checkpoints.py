@@ -6,10 +6,19 @@ import session_vars
 def make_logger (callback,strm='serverLog'):
     return  lambda s: callback.writeLine( strm, s )
 
+def is_collection_R( rule_args, callback, rei):
+    pr = make_logger(callback,'stdout')
+    pr (
+      str(is_collection (callback, rule_args[0]))
+    )
+
+def is_collection( callback, colln ):
+    return 0 != len([col[0] for col in row_iterator ( "COLL_NAME", "COLL_NAME = '{}'".format(colln) , AS_LIST, callback)][:1])
+
 def create_collection (args,callback,rei):
     objpath=args[0]
     rv = callback.msiCollCreate (objpath, "0", 0)
-    
+
 def set_acl_inherit (args,callback,rei):
     objpath = args[0]
     user = args[1]
@@ -33,8 +42,8 @@ def this_host_tied_to_resc_R( args, callback, rei ):
     pr = make_logger(callback,'stdout')
     yn = this_host_tied_to_resc(callback, args[0] )
     pr ('tied to resc {} -> {}' .format(args[0],yn))
-    
-    
+
+
 def this_host_tied_to_resc(callback, resc ):
     import socket
     this_host = socket.gethostname()
@@ -135,8 +144,8 @@ def get_user_name (callback,rei):
         u = session_vars.get_map(rei)['client_user']['user_name']
     except: pass
     return u
-    
-def user_has_access_R(rule_args, callback, rei ): 
+
+def user_has_access_R(rule_args, callback, rei ):
 
     pr = make_logger(callback,'stdout')
     username = rule_args[0]
@@ -175,7 +184,7 @@ def user_has_access (callback, rei, username, access_type_name, data_object_path
     else :
         do_query = False
 
-    if do_query: 
+    if do_query:
         for i in row_iterator( "COLL_NAME", condition, AS_LIST, callback):
             access = True
 
