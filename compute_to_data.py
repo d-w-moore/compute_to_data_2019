@@ -77,8 +77,6 @@ def _vet_acceptable_container_params (container_command , container_cfg, logger)
 
 Metadata_Tag = "irods::compute_to_data_task"
 
-#def #compute_to_data__
-
 def meta_stamp_R (arg,callback, rei): meta_stamp (callback,arg[0],task_id='dummy-task-id')
 
 def meta_stamp (callback, object_path, object_type = "-d", task_id = "" ):

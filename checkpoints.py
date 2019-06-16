@@ -190,3 +190,50 @@ def user_has_access (callback, rei, username, access_type_name, data_object_path
 
     return access
 
+#===========================================================================
+
+def replicate_data_objects( rule_args , callback , rei):
+
+    from_object = rule_args[0]
+    to_resource = rule_args[1]
+    from_resource = rule_args[2]
+    trim_after_replication = rule_args[3]
+
+    if len(to_resource) == 0 or len(from_object) == 0: return
+
+    path,obj = split_irods_path (from_object)
+
+    condition = "COLL_NAME = '{0}' and DATA_NAME = '{1}' ".format(path,obj)
+    if from_resource:
+        condition += " and DATA_RESC_NAME = '{}' ".format(from_resource)
+
+    data_objects = list(row_iterator('DATA_NAME,COLL_NAME,DATA_RESC_NAME,DATA_REPL_NUM', condition, AS_DICT, callback))
+
+    if not(data_objects):
+        condition = "COLL_NAME = '{0}' || like '{0}/%' " .format (from_object)
+        if from_resource:
+            condition += " and DATA_RESC_NAME = '{}'".format(from_resource)
+        data_objects = list(row_iterator('DATA_NAME,COLL_NAME,DATA_RESC_NAME,DATA_REPL_NUM', condition, AS_DICT, callback))
+
+    replicated = {}
+
+    for dobj in data_objects:
+
+        full_path = "{COLL_NAME}/{DATA_NAME}".format(**dobj)
+        if dobj['DATA_RESC_NAME'] == to_resource:
+            replicated[full_path] = True
+        else:
+            old_replication_status = replicated.get(full_path, False)
+
+            if not old_replication_status:
+                #callback.writeLine("stderr", "replicating: \n" + pprint.pformat(dobj))
+                retval = callback.msiDataObjRepl( full_path, "destRescName={0}".format(to_resource),0)
+                new_replication_status = retval['status']
+                replicated [full_path] = new_replication_status
+
+            if new_replication_status and not(old_replication_status) and trim_after_replication and \
+             dobj['DATA_RESC_NAME'] == from_resource != "":
+
+                trim_retval = callback.msiDataObjTrim( "{COLL_NAME}/{DATA_NAME}".format(**dobj), "null",
+                                                       dobj['DATA_REPL_NUM'], "1", "null", 0)
+
